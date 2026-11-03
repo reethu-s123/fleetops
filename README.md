@@ -1,3 +1,35 @@
+[ Client Browser / Mobile Driver ]
+                                   │
+                          (HTTPS:443 / WSS)
+                                   │
+                       ┌───────────────────────┐
+                       │   Nginx Reverse Proxy │
+                       │     (SSL & Statics)   │
+                       └───────────┬───────────┘
+                                   │
+                ┌──────────────────┴──────────────────┐
+                ▼                                     ▼
+    ┌───────────────────────┐             ┌───────────────────────┐
+    │   Daphne ASGI Server  │             │   Django Channels     │
+    │      (REST APIs)      │             │     (WebSockets)      │
+    └───────────┬───────────┘             └───────────┬───────────┘
+                │                                     │
+                ▼                                     ▼
+    ┌───────────────────────┐             ┌───────────────────────┐
+    │     PostgreSQL 16     │             │        Redis 7        │
+    │  (Schema Isolation    │             │   (Channel Layer &    │
+    │   via django-tenants) │             │    Cache Storage)     │
+    └───────────────────────┘             └───────────┬───────────┘
+                                                      │
+                                 ┌────────────────────┴────────────────────┐
+                                 ▼                                         ▼
+                     ┌───────────────────────┐                 ┌───────────────────────┐
+                     │     Celery Worker     │                 │      Celery Beat      │
+                     │   • AI ML Inference   │                 │   • Daily Expiry Scan │
+                     │   • PDF Invoices      │                 │   • Scheduled Crons   │
+                     └───────────────────────┘                 └───────────────────────┘
+
+
 ---
 
 ## 🌟 Core Feature Modules
