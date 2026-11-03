@@ -1,34 +1,19 @@
-[ Client Browser / Mobile Driver ]
-                                   │
-                          (HTTPS:443 / WSS)
-                                   │
-                       ┌───────────────────────┐
-                       │   Nginx Reverse Proxy │
-                       │     (SSL & Statics)   │
-                       └───────────┬───────────┘
-                                   │
-                ┌──────────────────┴──────────────────┐
-                ▼                                     ▼
-    ┌───────────────────────┐             ┌───────────────────────┐
-    │   Daphne ASGI Server  │             │   Django Channels     │
-    │      (REST APIs)      │             │     (WebSockets)      │
-    └───────────┬───────────┘             └───────────┬───────────┘
-                │                                     │
-                ▼                                     ▼
-    ┌───────────────────────┐             ┌───────────────────────┐
-    │     PostgreSQL 16     │             │        Redis 7        │
-    │  (Schema Isolation    │             │   (Channel Layer &    │
-    │   via django-tenants) │             │    Cache Storage)     │
-    └───────────────────────┘             └───────────┬───────────┘
-                                                      │
-                                 ┌────────────────────┴────────────────────┐
-                                 ▼                                         ▼
-                     ┌───────────────────────┐                 ┌───────────────────────┐
-                     │     Celery Worker     │                 │      Celery Beat      │
-                     │   • AI ML Inference   │                 │   • Daily Expiry Scan │
-                     │   • PDF Invoices      │                 │   • Scheduled Crons   │
-                     └───────────────────────┘                 └───────────────────────┘
+# 🚚 FleetOps — Multi-Tenant AI-Powered Logistics & Fleet Management SaaS
 
+[![Django](https://img.shields.io/badge/Django-5.0-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Celery](https://img.shields.io/badge/Celery-5.3-37814A?style=for-the-badge&logo=celery&logoColor=white)](https://docs.celeryq.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+
+**FleetOps** is an enterprise-grade B2B SaaS platform where logistics companies manage vehicles, drivers, multi-stop shipments, real-time GPS tracking, automated PDF billing, and AI-driven delay predictions.
+
+Built with **PostgreSQL Schema-per-Tenant isolation**, **Django Channels WebSockets**, **Celery Distributed Workers**, and **scikit-learn Machine Learning**.
+
+---
+
+## 🏛️ System Architecture
 
 ---
 
