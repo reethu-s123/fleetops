@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FleetOps - Live Shipment Tracking</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; 
+            padding: 24px; 
+            background: #f0f2f5; 
+        }
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 24px; 
+            max-width: 960px; 
+            margin: 0 auto; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+        }
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 1px solid #eee; 
+            padding-bottom: 16px; 
+            margin-bottom: 16px; 
+        }
+        .badge { 
+            background: #2563eb; 
+            color: white; 
+            padding: 6px 14px; 
+            border-radius: 20px; 
+            font-size: 13px; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+        }
+        .live-dot { 
+            height: 10px; 
+            width: 10px; 
+            background-color: #10b981; 
+            border-radius: 50%; 
+            display: inline-block; 
+            animation: pulse 1.5s infinite; 
+        }
+        @keyframes pulse { 
+            0% { transform: scale(0.95); opacity: 0.7; } 
+            50% { transform: scale(1.3); opacity: 1; } 
+            100% { transform: scale(0.95); opacity: 0.7; } 
+        }
+        #map { 
+            height: 500px; 
+            width: 100%; 
+            border-radius: 10px; 
+            margin-top: 20px; 
+        }
+        .info-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+            margin-top: 15px; 
+        }
+        .info-box { 
+            background: #f8fafc; 
+            padding: 14px; 
+            border-radius: 8px; 
+            border-left: 4px solid #2563eb; 
+        }
+        .info-box h4 { 
+            margin: 0 0 6px 0; 
+            color: #475569; 
+            font-size: 13px; 
+            text-transform: uppercase; 
+        }
+        .info-box p { 
+            margin: 0; 
+            font-size: 15px; 
+            font-weight: 500; 
+            color: #0f172a; 
+        }
+        .route-stats { 
+            display: flex; 
+            gap: 20px; 
+            margin-top: 15px; 
+            background: #e0f2fe; 
+            padding: 12px 18px; 
+            border-radius: 8px; 
+            color: #0369a1; 
+            font-weight: 600; 
+        }
+        .live-status { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            font-size: 14px; 
+            color: #10b981; 
+            font-weight: 600; 
+        }
+
+        /* AI Prediction & Weather Widget */
+        .ai-banner {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+            padding: 16px 20px;
+            background: #ffffff;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+        .ai-badge-low { 
+            background: #dcfce7; 
+            color: #15803d; 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            font-weight: 700; 
+            font-size: 14px; 
+            display: inline-block;
+        }
+        .ai-badge-high { 
+            background: #fee2e2; 
+            color: #b91c1c; 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            font-weight: 700; 
+            font-size: 14px; 
+            display: inline-block;
+        }
+
+        .btn-download-invoice {
+            background: #0f172a;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            transition: background 0.2s ease;
+        }
+        .btn-download-invoice:hover {
+            background: #1e293b;
+        }
+
+        .truck-wrapper {
+            display: inline-block;
+            transition: transform 0.2s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="card" 
+         id="shipmentData"
+         data-tracking-id="{{ shipment.tracking_id }}"
+         data-origin-lat="{{ shipment.origin_lat|default:'12.9716' }}"
+         data-origin-lng="{{ shipment.origin_lng|default:'77.5946' }}"
+         data-dest-lat="{{ shipment.dest_lat|default:'13.0827' }}"
+         data-dest-lng="{{ shipment.dest_lng|default:'80.2707' }}"
+         data-origin-addr="{{ shipment.origin_address|default:'Bengaluru' }}"
+         data-dest-addr="{{ shipment.destination_address|default:'Chennai' }}">
+
+        <!-- Top Header with Download PDF Invoice Button & Badge -->
+        <div class="header">
+            <div>
+                <h2 style="margin: 0 0 6px 0; color: #0f172a;">FleetOps Live Shipment Tracker</h2>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <span style="color: #64748b; font-size: 14px;">Tracking ID: <strong>{{ shipment.tracking_id }}</strong></span>
+                    <div class="live-status"><span class="live-dot"></span> Live Telemetry Connected</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <a href="/api/shipments/{{ shipment.id }}/download-invoice/" 
+                   target="_blank"
+                   class="btn-download-invoice">
+                    📄 Download PDF Invoice
+                </a>
+                <span class="badge">{{ shipment.status }}</span>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-box">
+                <h4>Pickup Location (Origin)</h4>
+                <p>{{ shipment.origin_address }}</p>
+            </div>
+            <div class="info-box" style="border-left-color: #10b981;">
+                <h4>Delivery Location (Destination)</h4>
+                <p>{{ shipment.destination_address }}</p>
+            </div>
+        </div>
+
+        <!-- AI DELAY RISK & LIVE DESTINATION WEATHER BANNER -->
+        <div class="ai-banner">
+            <div>
+                <div style="font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.5px;">🤖 AI Delay Risk Assessment</div>
+                <div style="margin-top: 8px;">
+                    <span id="aiRiskBadge" class="{% if shipment.is_delayed_predicted %}ai-badge-high{% else %}ai-badge-low{% endif %}">
+                        {% if shipment.is_delayed_predicted %}
+                            ⚠️ HIGH RISK OF DELAY ({{ shipment.predicted_delay_prob|floatformat:0 }}% chance)
+                        {% else %}
+                            ✅ LOW RISK (On Schedule - {{ shipment.predicted_delay_prob|floatformat:0 }}% risk)
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.5px;">🌤️ Destination Live Weather (Open-Meteo)</div>
+                <div id="weatherInfo" style="margin-top: 8px; font-weight: 600; font-size: 15px; color: #0f172a;">
+                    {{ shipment.weather_condition|default:"Clear Sky" }} &nbsp;•&nbsp; {{ shipment.weather_temperature|default:"30.5" }}°C
+                </div>
+            </div>
+        </div>
+
+        <div id="routeStats" class="route-stats" style="display: none;">
+            <div>Estimated Distance: <span id="distVal">...</span> km</div>
+            <div>Estimated Drive Time: <span id="timeVal">...</span> mins</div>
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const cardElem = document.getElementById('shipmentData');
+        const trackingId = cardElem.dataset.trackingId;
+        const originLat = parseFloat(cardElem.dataset.originLat);
+        const originLng = parseFloat(cardElem.dataset.originLng);
+        const destLat = parseFloat(cardElem.dataset.destLat);
+        const destLng = parseFloat(cardElem.dataset.destLng);
+        const originAddr = cardElem.dataset.originAddr;
+        const destAddr = cardElem.dataset.destAddr;
+
+        // Initialize Map
+        const map = L.map('map').setView([originLat, originLng], 7);
+
+        // ESRI High Definition Street Tiles
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, TomTom',
+            maxZoom: 18
+        }).addTo(map);
+
+        // Origin and Destination Markers
+        L.marker([originLat, originLng]).addTo(map).bindPopup(`<b>Pickup:</b><br>${originAddr}`);
+        L.marker([destLat, destLng]).addTo(map).bindPopup(`<b>Destination:</b><br>${destAddr}`);
+
+        // Amber Delivery Truck Icon (Faces Chennai / East)
+        function createVehicleIcon(angle = 0) {
+            return L.divIcon({
+                html: `
+                    <div class="truck-wrapper" style="transform: rotate(${angle}deg); transform-origin: center center;">
+                        <svg width="52" height="52" viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Drop Shadow -->
+                            <ellipse cx="26" cy="44" rx="22" ry="4" fill="rgba(0,0,0,0.35)"/>
+                            <!-- Rear Cargo Container (High-Contrast Delivery Amber/Orange) -->
+                            <rect x="2" y="14" width="26" height="22" rx="3" fill="#EA580C"/>
+                            <rect x="5" y="17" width="20" height="16" fill="#F97316"/>
+                            <!-- Front Cabin (Charcoal Grey -> Facing Chennai on the Right) -->
+                            <path d="M28 18H40L48 27V36H28V18Z" fill="#1E293B"/>
+                            <!-- Front Windshield Window (Sky Blue reflection) -->
+                            <path d="M30 20H38L44 27H30V20Z" fill="#38BDF8"/>
+                            <!-- Glowing Headlights shining forward to Chennai -->
+                            <polygon points="48,29 54,25 54,35 48,31" fill="#FDE047" opacity="0.9"/>
+                            <circle cx="48" cy="30" r="2.5" fill="#FACC15"/>
+                            <!-- Wheels -->
+                            <circle cx="12" cy="36" r="6" fill="#0F172A"/>
+                            <circle cx="12" cy="36" r="2.5" fill="#CBD5E1"/>
+                            <circle cx="38" cy="36" r="6" fill="#0F172A"/>
+                            <circle cx="38" cy="36" r="2.5" fill="#CBD5E1"/>
+                        </svg>
+                    </div>
+                `,
+                className: '',
+                iconSize: [52, 52],
+                iconAnchor: [26, 26]
+            });
+        }
+
+        let driverMarker = L.marker([originLat, originLng], { icon: createVehicleIcon(0) }).addTo(map)
+            .bindPopup("<b>Fleet Driver:</b> Heading to Chennai").openPopup();
+
+        // OSRM Highway Route
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+
+        fetch(osrmUrl)
+            .then(res => res.json())
+            .then(data => {
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    document.getElementById('distVal').innerText = (route.distance / 1000).toFixed(1);
+                    document.getElementById('timeVal').innerText = (route.duration / 60).toFixed(0);
+                    document.getElementById('routeStats').style.display = 'flex';
+
+                    const routeLayer = L.geoJSON(route.geometry, {
+                        style: { color: '#2563eb', weight: 5, opacity: 0.85 }
+                    }).addTo(map);
+
+                    map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+                }
+            });
+
+        // ================= WEBSOCKET TELEMETRY =================
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socketUrl = `${wsProtocol}//${window.location.host}/ws/track/${trackingId}/`;
+        const trackingSocket = new WebSocket(socketUrl);
+
+        trackingSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+
+            // 1. Live GPS updates
+            if (data.type === 'LIVE_LOCATION') {
+                const newLat = parseFloat(data.lat);
+                const newLng = parseFloat(data.lng);
+                const bearing = parseFloat(data.bearing || 0);
+
+                driverMarker.setLatLng([newLat, newLng]);
+                driverMarker.setIcon(createVehicleIcon(bearing));
+            }
+
+            // 2. Real-Time AI Delay & Weather Alerts pushed from Celery
+            if (data.type === 'AI_DELAY_ALERT') {
+                const badge = document.getElementById('aiRiskBadge');
+                if (data.is_delayed) {
+                    badge.className = 'ai-badge-high';
+                    badge.innerText = `⚠️ HIGH RISK OF DELAY (${data.prob}% chance)`;
+                } else {
+                    badge.className = 'ai-badge-low';
+                    badge.innerText = `✅ LOW RISK (On Schedule - ${data.prob}% risk)`;
+                }
+                document.getElementById('weatherInfo').innerText = `${data.condition} • ${data.temperature}°C`;
+            }
+        };
+    </script>
+</body>
+</html>
